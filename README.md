@@ -14,6 +14,23 @@ The code is based on CrossAttentionControl which supports prompt editing.
 `torch transformers diffusers==0.4.1 numpy PIL tqdm difflib librosa realesrgan`
 * executable: `ffmpeg`
 
+## Example code:
+```
+import sdvm
+
+v = sdvm.VideoMaker('project_name',
+                    prompt='dog with hat', 
+                    num_frames=10,
+                    increase_mode=sdvm.IncreaseMode.linear)
+
+v.add(edit_weights=[('hat', -0.5)], seed=1001)
+v.add(edit_weights=[('hat', 1.5)], seed=1001)
+v.add(prompt='cat', seed=1002)
+
+v.make()
+v.encode(show=True)
+```
+
 ## Google Colab notebook:
 * https://colab.research.google.com/drive/15x55IoGOZHqozTPKDlX7ZBG0duTV-lj4?usp=sharing
 
