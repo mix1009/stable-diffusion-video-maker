@@ -15,8 +15,9 @@ The code is based on CrossAttentionControl which supports prompt editing.
 * executable: `ffmpeg`
 
 ## Google Colab notebook:
-https://colab.research.google.com/drive/15x55IoGOZHqozTPKDlX7ZBG0duTV-lj4?usp=sharing
+* https://colab.research.google.com/drive/15x55IoGOZHqozTPKDlX7ZBG0duTV-lj4?usp=sharing
 
 ## Credits:
 CrossAttentionControl : https://github.com/bloc97/CrossAttentionControl
+
 Upsampling code : https://github.com/nateraw/stable-diffusion-videos
