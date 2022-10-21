@@ -5,11 +5,12 @@ The code is based on CrossAttentionControl which supports prompt editing.
 
 ## Features
 * animate between seeds, prompts, and prompt edit weights.
-* can assign different frames between keyframes.
+* can insert different number of frames between keyframes.
 * keyframes can be animated using different curves (linear, bezier, bezier2...)
 * supports negative prompts
 * cache keyframes
 * upsampling using RealESRGAN
+* encode video using ffmpeg
 
 ## Dependencies:
 * python libraries: 
