@@ -15,6 +15,7 @@ class KeyFrame:
                  strength=1.0,
                  num_frames=30,
                  start_frame=0,
+                 increase_mode=None,
                  overwrite=None):
         self.video_project = video_project
         self.prompt = prompt
@@ -28,6 +29,7 @@ class KeyFrame:
         self.num_frames = num_frames
         self.start_frame = start_frame
         self.start_sec = float(start_frame / video_project.fps)
+        self.increase_mode = increase_mode
         self.overwrite = overwrite
         self.hash = self.calc_hash()
 
@@ -87,6 +89,10 @@ class KeyFrame:
         m['strength'] = self.strength
         m['num_frames'] = self.num_frames
         m['start_frame'] = self.start_frame
+        if callable(self.increase_mode):
+            m['increase_mode'] = self.increase_mode.__name__
+        else:
+            m['increase_mode'] = self.increase_mode
         return m
 
 class IncreaseMode:
@@ -221,7 +227,10 @@ class VideoMaker:
         if len(images) > 0:
             display(sdutil.image_grid(images, cols=3))
     
-    def add(self, seed=None, prompt=None, prompt_edit=None, edit_weights=[], negative_prompt=None, num_frames=None, overwrite=None):
+    def add(self, seed=None, prompt=None, prompt_edit=None, edit_weights=[], negative_prompt=None,
+            num_frames=None, 
+            increase_mode=None,
+            overwrite=None):
         if prompt is None:
             prompt = self.prompt
         if prompt_edit is None:
@@ -244,6 +253,7 @@ class VideoMaker:
                      num_frames=num_frames,
                      start_frame=self.total_frame_count,
                      strength=1.0,
+                     increase_mode=increase_mode,
                      overwrite=overwrite)
         
         self.key_frames.append(k)
@@ -287,7 +297,8 @@ class VideoMaker:
         keynum = 0
         framenum = 0
         
-        mod_fn = self._get_increase_function(self.increase_mode)
+        project_mod_fn = self._get_increase_function(self.increase_mode)
+        mod_fn = project_mod_fn
 
         with tqdm(total=self.total_frame_count) as pbar:
             while len(keyframes)>0:
@@ -297,6 +308,10 @@ class VideoMaker:
                     overwrite=k2.overwrite
 
                 seed=k2.seed
+                if k2.increase_mode:
+                    mod_fn = self._get_increase_function(k2.increase_mode)
+                else:
+                    mod_fn = project_mod_fn
 
                 latent1 = get_latent(k1.seed, self.width, self.height)
                 latent2 = get_latent(k2.seed, self.width, self.height)
@@ -517,8 +532,11 @@ class VideoMaker:
         
         for d in m['key_frames']:
             negp = ""
+            incmode = None
             if 'negative_prompt' in d.keys():
                 negp = d['negative_prompt']
+            if 'increase_mode' in d.keys():
+                incmode = d['increase_mode']
             k = KeyFrame(self,
                          prompt=d['prompt'],
                          prompt_edit=d['prompt_edit'],
@@ -527,7 +545,9 @@ class VideoMaker:
                          seed=d['seed'],
                          strength=d['strength'],
                          num_frames=d['num_frames'],
-                         start_frame=d['start_frame'])
+                         start_frame=d['start_frame'],
+                         increase_mode=incmode,
+                        )
             self.add_keyframe(k)
             self.total_frame_count += k.num_frames
             
