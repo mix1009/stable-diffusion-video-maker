@@ -29,7 +29,7 @@ v = sdvm.VideoMaker('project_name',
 
 v.add(edit_weights=[('hat', -0.5)], seed=1001)
 v.add(edit_weights=[('hat', 1.5)], seed=1001)
-v.add(prompt='cat', negative_prompt='yellow', seed=1002, num_frames=15)
+v.add(prompt='cat', negative_prompt='yellow', seed=1002, num_frames=15, increase_mode=sdvm.IncreaseMode.bezier)
 
 # creates images in sdout folder
 v.make()
@@ -49,6 +49,6 @@ v.encode(show=True)
 * https://colab.research.google.com/drive/15x55IoGOZHqozTPKDlX7ZBG0duTV-lj4?usp=sharing
 
 ## Credits:
-CrossAttentionControl : https://github.com/bloc97/CrossAttentionControl
+Cross Attention Control with Stable Diffusion : https://github.com/bloc97/CrossAttentionControl
 
 Upsampling code : https://github.com/nateraw/stable-diffusion-videos
