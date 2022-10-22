@@ -548,7 +548,7 @@ class VideoMaker:
                          start_frame=d['start_frame'],
                          increase_mode=incmode,
                         )
-            self.add_keyframe(k)
+            self.key_frames.append(k)
             self.total_frame_count += k.num_frames
             
         return m
