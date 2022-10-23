@@ -17,7 +17,7 @@ The code is based on CrossAttentionControl which supports prompt editing.
 `torch transformers diffusers==0.4.1 numpy PIL tqdm difflib librosa realesrgan`
 * executable: `ffmpeg`
 
-## Example code:
+## Example code 1:
 ```
 import sdvm
 
@@ -37,6 +37,33 @@ v.make()
 # encode video file and display in python notebook
 v.encode(show=True)
 ```
+
+## Example code 2:
+```
+import sdvm
+
+prompt = "windows wallpaper"
+negative = "computer screen, text, button, menu, frame"
+
+v = sdvm.VideoMaker('windows_wallpaper',
+                    prompt=prompt,
+                    negative_prompt=negative,
+                    num_frames=30,
+                    width=768, height=512,
+                    increase_mode=sdvm.IncreaseMode.bezier)
+
+seeds = [1001, 1002, 1003, 1004, 1005, 1006]
+seeds.extend([3001, 3002, 3003, 3004, 3005])
+seeds.extend([4002, 4005, 4006])
+seeds.extend([5001, 5002, 5003, 5004, 5005, 5006])
+for seed in seeds:
+    v.add(seed)
+
+v.make()
+v.upscale()
+```
+[![Result Video: YouTube](https://i.imgur.com/Gvo6703.png)](https://www.youtube.com/watch?v=pDRv6xT1ZC8)
+
 
 ## Project Structure:
  * projects/project_name is the root of the project. (projects can be changed by passing basepath in VideoMaker)
