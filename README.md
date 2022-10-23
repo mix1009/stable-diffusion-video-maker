@@ -73,9 +73,9 @@ v.upscale()
 * projects/project_name/project_name_upsample.mp4 : upsampled video file path
  
 ## Google Colab notebook:
-* https://colab.research.google.com/drive/15x55IoGOZHqozTPKDlX7ZBG0duTV-lj4?usp=sharing
+ * [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/15x55IoGOZHqozTPKDlX7ZBG0duTV-lj4?usp=sharing) https://colab.research.google.com/drive/15x55IoGOZHqozTPKDlX7ZBG0duTV-lj4?usp=sharing
 
 ## Credits:
-Cross Attention Control with Stable Diffusion : https://github.com/bloc97/CrossAttentionControl
+* Cross Attention Control with Stable Diffusion : https://github.com/bloc97/CrossAttentionControl
 
-Upsampling code : https://github.com/nateraw/stable-diffusion-videos
+* Upsampling code : https://github.com/nateraw/stable-diffusion-videos
