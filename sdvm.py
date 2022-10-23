@@ -1,9 +1,15 @@
 from crossattentioncontrol import sd, get_latent, get_text_embedding, lerp_latent_and_embedding
+import crossattentioncontrol
 import sdutil
 from tqdm.auto import tqdm
 import numpy as np
 import os, glob, shutil
 import torch
+
+def init_model(model_path_diffusion = "CompVis/stable-diffusion-v1-4",
+               model_path_clip = "openai/clip-vit-large-patch14",
+               auth_token=None):
+    crossattentioncontrol.init_model(model_path_diffusion, model_path_clip, auth_token)
 
 class KeyFrame:        
     def __init__(self, video_project,

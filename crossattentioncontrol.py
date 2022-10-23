@@ -5,26 +5,58 @@ import torch
 from transformers import CLIPModel, CLIPTextModel, CLIPTokenizer
 from diffusers import AutoencoderKL, UNet2DConditionModel
 
-#NOTE: Last tested working diffusers version is diffusers==0.4.1, https://github.com/huggingface/diffusers/releases/tag/v0.4.1
-#Init CLIP tokenizer and model
-model_path_clip = "openai/clip-vit-large-patch14"
-clip_tokenizer = CLIPTokenizer.from_pretrained(model_path_clip)
-clip_model = CLIPModel.from_pretrained(model_path_clip, torch_dtype=torch.float16)
-clip = clip_model.text_model
+_model = None
 
-#Init diffusion model
-auth_token = True #Replace this with huggingface auth token as a string if model is not already downloaded
-model_path_diffusion = "CompVis/stable-diffusion-v1-4"
+class SDModel:
+    def __init__(self, model_path_diffusion, model_path_clip, auth_token=None):
+        self.model_path_diffusion = model_path_diffusion
+        self.model_path_clip = model_path_clip
+        self.auth_token = auth_token
+        
+        # huggingface auth token
+        if self.auth_token is None:
+            self.auth_token = True
+        
 
-unet = UNet2DConditionModel.from_pretrained(model_path_diffusion, subfolder="unet", use_auth_token=auth_token, revision="fp16", torch_dtype=torch.float16)
-vae = AutoencoderKL.from_pretrained(model_path_diffusion, subfolder="vae", use_auth_token=auth_token, revision="fp16", torch_dtype=torch.float16)
+        self.init_model()
+        
+    def init_model(self):
+        print("Loading models...")
 
-#Move to GPU
-device = "cuda"
-unet.to(device)
-vae.to(device)
-clip.to(device)
-print("Loaded all models")
+        self.clip_tokenizer = CLIPTokenizer.from_pretrained(self.model_path_clip)
+        self.clip_model = CLIPModel.from_pretrained(self.model_path_clip, torch_dtype=torch.float16)
+        self.clip = self.clip_model.text_model
+
+        self.unet = UNet2DConditionModel.from_pretrained(self.model_path_diffusion,
+                                                         subfolder="unet", 
+                                                         use_auth_token=self.auth_token,
+                                                         revision="fp16",
+                                                         torch_dtype=torch.float16)
+        self.vae = AutoencoderKL.from_pretrained(self.model_path_diffusion,
+                                                 subfolder="vae",
+                                                 use_auth_token=self.auth_token,
+                                                 revision="fp16",
+                                                 torch_dtype=torch.float16)
+
+        self.device = "cuda"
+        self.unet.to(self.device)
+        self.vae.to(self.device)
+        self.clip.to(self.device)
+        print("Loaded all models")
+
+def init_model(model_path_diffusion = "CompVis/stable-diffusion-v1-4",
+               model_path_clip = "openai/clip-vit-large-patch14",
+               auth_token = None):
+    global _model
+    _model = SDModel(model_path_diffusion, model_path_clip, auth_token)
+    return _model
+
+def get_model():
+    global _model
+    if _model is None:
+        _model = init_model()
+    return _model
+
 import numpy as np
 import random
 from PIL import Image
@@ -34,8 +66,11 @@ from torch import autocast
 from difflib import SequenceMatcher
 
 def init_attention_weights(weight_tuples):
+    clip_tokenizer = get_model().clip_tokenizer
     tokens_length = clip_tokenizer.model_max_length
     weights = torch.ones(tokens_length)
+    unet = get_model().unet
+    device = get_model().device
     
     for i, w in weight_tuples:
         if i < tokens_length and i >= 0:
@@ -51,6 +86,10 @@ def init_attention_weights(weight_tuples):
     
 
 def init_attention_edit(tokens, tokens_edit):
+    clip_tokenizer = get_model().clip_tokenizer
+    unet = get_model().unet
+    device = get_model().device
+    
     tokens_length = clip_tokenizer.model_max_length
     mask = torch.zeros(tokens_length)
     indices_target = torch.arange(tokens_length, dtype=torch.long)
@@ -77,6 +116,9 @@ def init_attention_edit(tokens, tokens_edit):
 
 def init_attention_func():
     #ORIGINAL SOURCE CODE: https://github.com/huggingface/diffusers/blob/91ddd2a25b848df0fa1262d4f1cd98c7ccb87750/src/diffusers/models/attention.py#L276
+    
+    unet = get_model().unet
+
     def new_attention(self, query, key, value):
         # TODO: use baddbmm for better performance
         attention_scores = torch.matmul(query, key.transpose(-1, -2)) * self.scale
@@ -156,30 +198,35 @@ def init_attention_func():
             module._attention = new_attention.__get__(module, type(module))
             
 def use_last_tokens_attention(use=True):
+    unet = get_model().unet
     for name, module in unet.named_modules():
         module_name = type(module).__name__
         if module_name == "CrossAttention" and "attn2" in name:
             module.use_last_attn_slice = use
             
 def use_last_tokens_attention_weights(use=True):
+    unet = get_model().unet
     for name, module in unet.named_modules():
         module_name = type(module).__name__
         if module_name == "CrossAttention" and "attn2" in name:
             module.use_last_attn_weights = use
             
 def use_last_self_attention(use=True):
+    unet = get_model().unet
     for name, module in unet.named_modules():
         module_name = type(module).__name__
         if module_name == "CrossAttention" and "attn1" in name:
             module.use_last_attn_slice = use
             
 def save_last_tokens_attention(save=True):
+    unet = get_model().unet
     for name, module in unet.named_modules():
         module_name = type(module).__name__
         if module_name == "CrossAttention" and "attn2" in name:
             module.save_last_attn_slice = save
             
 def save_last_self_attention(save=True):
+    unet = get_model().unet
     for name, module in unet.named_modules():
         module_name = type(module).__name__
         if module_name == "CrossAttention" and "attn1" in name:
@@ -205,6 +252,12 @@ def stablediffusion(prompt="",
                     init_image_strength=0.5,
                     disable_tqdm=False,
                    ):
+    clip_tokenizer = get_model().clip_tokenizer
+    clip = get_model().clip
+    unet = get_model().unet
+    vae = get_model().vae
+    device = get_model().device
+
     #Change size to multiple of 64 to prevent size mismatches inside model
     width = width - width % 64
     height = height - height % 64
@@ -329,6 +382,8 @@ def prompt_token(prompt, index):
 
 @torch.no_grad()
 def get_latent(seed, width=512, height=512):
+    device = get_model().device
+
     width = width - width % 64
     height = height - height % 64
     
@@ -364,6 +419,9 @@ def sort_seeds(seeds, width, height):
 
 @torch.no_grad()
 def get_text_embedding(prompt):
+    clip_tokenizer = get_model().clip_tokenizer
+    device = get_model().device
+
     with autocast(device):
         tokens_conditional = clip_tokenizer(prompt, padding="max_length", max_length=clip_tokenizer.model_max_length, truncation=True, return_tensors="pt", return_overflowing_tokens=True)
         embedding_conditional = clip(tokens_conditional.input_ids.to(device)).last_hidden_state
@@ -401,6 +459,7 @@ def lerp_latent_and_embedding(latent1, latent2, embedding1, embedding2, t):
     return latent, embedding
 
 def print_token(prompt):
+    clip_tokenizer = get_model().clip_tokenizer
     tokens = clip_tokenizer(prompt, padding="max_length", max_length=clip_tokenizer.model_max_length, truncation=True, return_tensors="pt", return_overflowing_tokens=True).input_ids[0]
     index = 1
     while True:
@@ -412,6 +471,7 @@ def print_token(prompt):
         if index > 500: break
 
 def sep_token(prompt):
+    clip_tokenizer = get_model().clip_tokenizer
     tokens = clip_tokenizer(prompt, padding="max_length", max_length=clip_tokenizer.model_max_length, truncation=True, return_tensors="pt", return_overflowing_tokens=True).input_ids[0]
     words = []
     index = 1
