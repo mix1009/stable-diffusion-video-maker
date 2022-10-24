@@ -64,6 +64,36 @@ v.upscale()
 ```
 [![Result Video: YouTube](https://i.imgur.com/Gvo6703.png)](https://www.youtube.com/watch?v=pDRv6xT1ZC8)
 
+## Editing weights
+```
+prompt = 'the quick brown fox jumps over the lazy dog'
+
+# assign weight to single word
+edit_weights = [('brown', -1.0) ]
+
+# assign weight to each word
+edit_weights = [('brown', 1.5), ('lazy', -1) ]
+
+# assign weight using token indices (index starts with 1, which is 'the')
+edit_weights = [(1, -1)]
+
+# assign same weight to multiple words
+edit_weights = [(['quick', 'brown'], -1)]
+```
+
+## IncreaseMode
+increase_mode can be set when initializing the VideoMaker class. It's default value is linear.
+The keyframes are interpolated using the increase_mode curve. It's also possible to assign increase_mode when adding a keyframe.
+This will interpolate using the curve between the previous keyframe.
+
+Here's a graph of the curves:
+
+![Increase Mode](https://github.com/mix1009/stable-diffusion-video-maker/blob/main/doc/images/IncreaseMode1.png?raw=true)
+
+If you experience jumps when using bezier curves, bezierf, bezier2f, bezier3f rounds values so there is no jumps around the keyframes.
+
+![Increase Mode fix](https://github.com/mix1009/stable-diffusion-video-maker/blob/main/doc/images/IncreaseMode2.png?raw=true)
+
 
 ## Project Structure:
  * projects/project_name is the root of the project. (projects can be changed by passing basepath in VideoMaker)
