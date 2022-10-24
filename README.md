@@ -12,6 +12,9 @@ The code is based on CrossAttentionControl which supports prompt editing.
 * upsampling using RealESRGAN
 * encode video using ffmpeg
 
+## Google Colab notebook:
+ * [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/15x55IoGOZHqozTPKDlX7ZBG0duTV-lj4?usp=sharing) https://colab.research.google.com/drive/15x55IoGOZHqozTPKDlX7ZBG0duTV-lj4?usp=sharing
+
 ## Dependencies:
 * python libraries: 
 `torch transformers diffusers==0.4.1 numpy PIL tqdm difflib librosa realesrgan`
@@ -84,15 +87,16 @@ v = sdvm.VideoMaker('project_name',
 ### 2. generate and add keyframes
 use generate to test images. 
 ```
-# generate 6 images starting from 101
-v.generate(seed=101, count=6,
+# generate 10 images from seed 101 to 110
+v.generate(seed=101, count=10,
            prompt='photo of a cat',
            negative_prompt='',
            edit_weights=[],
            )
 
-# generate 6 images using seed 101 - 106, using the project prompt.
+# generate 6(default) images using seed 101 - 106, using the project prompt.
 v.generate(101)
+
 
 # add first keyframe ( add one key frame )
 v.add(seed=106, prompt='photo of a cat')
@@ -179,7 +183,7 @@ Here's a graph of the curves:
 
 ![Increase Mode](https://github.com/mix1009/stable-diffusion-video-maker/blob/main/doc/images/IncreaseMode1.png?raw=true)
 
-If you experience jumps when using bezier curves, bezierf, bezier2f, bezier3f rounds values so there is no jumps around the keyframes.
+If you experience jumps when using bezier curves, you can add f suffix. bezierf, bezier2f, bezier3f rounds values so there is no jumps around the keyframes.
 
 ![Increase Mode fix](https://github.com/mix1009/stable-diffusion-video-maker/blob/main/doc/images/IncreaseMode2.png?raw=true)
 
@@ -191,9 +195,6 @@ If you experience jumps when using bezier curves, bezierf, bezier2f, bezier3f ro
  * projects/project_name/upsample : upsampled images.
 * projects/project_name/project_name_upsample.mp4 : upsampled video file path
  
-## Google Colab notebook:
- * [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/15x55IoGOZHqozTPKDlX7ZBG0duTV-lj4?usp=sharing) https://colab.research.google.com/drive/15x55IoGOZHqozTPKDlX7ZBG0duTV-lj4?usp=sharing
-
 ## Credits:
 * Cross Attention Control with Stable Diffusion : https://github.com/bloc97/CrossAttentionControl
 
