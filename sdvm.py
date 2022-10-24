@@ -55,7 +55,7 @@ class KeyFrame:
         prompt = self.prompt
         if len(prompt)>60:
             prompt = prompt[:60]+'...'
-        txt = f'{self.start_frame:4} {self.start_sec:3.1f}: {prompt} ({self.seed})'
+        txt = f'{self.start_frame:4} {self.start_sec:5.1f}s | {prompt} ({self.seed})'
         if len(self.edit_weights)>0:
             w = f'{self.edit_weights}'
             if len(w)>50:
@@ -257,7 +257,7 @@ class VideoMaker:
                      edit_weights=edit_weights,
                      negative_prompt=negative_prompt,
                      num_frames=num_frames,
-                     start_frame=self.total_frame_count,
+                     start_frame=self.total_frame_count-1,
                      strength=1.0,
                      increase_mode=increase_mode,
                      overwrite=overwrite)
