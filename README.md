@@ -65,8 +65,7 @@ for seed in seeds:
 v.make()
 v.upsample() # upsample and create video file
 ```
-[![Result Video: YouTube](https://i.imgur.com/Gvo6703.png)](https://www.youtube.com/watch?v=pDRv6xT1ZC8)
-
+[![Result Video: YouTube](https://user-images.githubusercontent.com/1288793/197533606-7f9c0d52-2d6f-4d3e-a32f-0304f07197f7.jpg)](https://www.youtube.com/watch?v=pDRv6xT1ZC8)
 
 ## Workflow
 
@@ -109,6 +108,7 @@ v.generate(seed=101, count=10,
 # generate and display 6(default) images using seed 101 - 106, with the project prompt.
 v.generate(101)
 ```
+generate() save images to cache folder, so it doesn't have to regenerate images next time.
 
 ### 4. add keyframes
 
@@ -135,9 +135,10 @@ v.preview()
 # show also can display images along side text.
 v.show(show_image=True)
 ```
+generate(), preview(), and show(show_image=True) share image cache.
 
 ### 5. make
-make renders of each frame to sdout folder. If an image already exists for the frame, it just skips and advances to the next frame. If you want to regenerate all frames. you can call clean(). It will delete all files in sdout.
+make renders each frame to sdout folder. If an image file already exists for the frame, it skips and advances to the next frame. If you want to regenerate all frames. you can call clean(). It will delete all files in sdout.
 ```
 # v.clean()
 v.make()
