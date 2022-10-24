@@ -72,7 +72,19 @@ v.upscale()
 
 The workflow is for Google Colab or Jupyter Notebook.
 
-### 1. initialize VideoMaker
+### 1. load model
+```
+# You need to provide your huggingface account token if the model needs to be downloaded.
+sdvm.init_model(auth_token='hf_your_huggingface_access_token')
+
+# You can pass model id. 'CompVis/stable-diffusion-v1-4' is the default model.
+sdvm.init_model('runwayml/stable-diffusion-v1-5', auth_token='hf_your_huggingface_access_token')
+
+# If the model is already downloaded and default model is used, calling init_model is optional.
+# The library will load the model when creating the first image.
+```
+
+### 2. initialize VideoMaker
 ```
 v = sdvm.VideoMaker('project_name',
                     width=512,
@@ -84,21 +96,21 @@ v = sdvm.VideoMaker('project_name',
                     num_frames=90, # default num of frames for interpolation between keyframes.
                     )
 ```
-### 2. generate and add keyframes
+### 3. generate and test images for keyframes
 use generate to test images. 
 ```
-# generate 10 images from seed 101 to 110
+# generate and display 10 images from seed 101 to 110
 v.generate(seed=101, count=10,
            prompt='photo of a cat',
            negative_prompt='',
            edit_weights=[],
            )
 
-# generate 6(default) images using seed 101 - 106, using the project prompt.
+# generate and display 6(default) images using seed 101 - 106, with the project prompt.
 v.generate(101)
 ```
 
-add keyframes: 
+### 4. add keyframes
 
 ```
 # add first keyframe ( add one key frame )
@@ -124,7 +136,7 @@ v.preview()
 v.show(show_image=True)
 ```
 
-### 3. make
+### 5. make
 make renders of each frame to sdout folder. If an image already exists for the frame, it just skips and advances to the next frame. If you want to regenerate all frames. you can call clean(). It will delete all files in sdout.
 ```
 # v.clean()
@@ -143,13 +155,13 @@ v.add(seed=1005)                  # keyframe 5
 This will overwrite frames between keyframe 1 to keyframe 2(inclusive).
 It will maintain the overwrite status if the overwrite is not passed. So it will also overwrite frames between keyframe 2 and keyframe 3(inclusive).
 
-### 4. encode
+### 6. encode
 encodes all frames from sdout using ffmpeg. File is saved in `./projects/project_name/project_name.mp4`.
 ```
 v.encode(show=True)
 ```
 
-### 5. upsample
+### 7. upsample
 upsample using RealESRGAN (4x). Frames from sdout is upscaled and saved in 'upsample' folder. Then encoded to `./projects/project_name/project_name_upsample.mp4`.
 ```
 v.upsample()
