@@ -64,6 +64,91 @@ v.upscale()
 ```
 [![Result Video: YouTube](https://i.imgur.com/Gvo6703.png)](https://www.youtube.com/watch?v=pDRv6xT1ZC8)
 
+
+## Workflow
+
+The workflow is for Google Colab or Jupyter Notebook.
+
+### 1. initialize VideoMaker
+```
+v = sdvm.VideoMaker('project_name',
+                    width=512,
+                    height=512,
+                    num_inference_steps=35,
+                    fps=10,
+                    prompt='photo of a tiger', # default prompt
+                    negative_prompt='',
+                    num_frames=90, # default num of frames for interpolation between keyframes.
+                    )
+```
+### 2. generate and add keyframes
+use generate to test images. 
+```
+# generate 6 images starting from 101
+v.generate(seed=101, count=6,
+           prompt='photo of a cat',
+           negative_prompt='',
+           edit_weights=[],
+           )
+
+# generate 6 images using seed 101 - 106, using the project prompt.
+v.generate(101)
+
+# add first keyframe ( add one key frame )
+v.add(seed=106, prompt='photo of a cat')
+
+# add second keyframe
+# will add 29 frames for interpolation from first keyframe, and second keyframe
+v.add(103, num_frames=30)
+
+# project will have 31 frames.
+v.show()
+```
+```
+   0   0.0s | photo of a cat (106)
+  30   3.0s | photo of a tiger (103)
+```
+```
+# show all keyframe images in project
+# It won't regenerate the images if found in cache.
+v.preview()
+
+# show also can display images along side text.
+v.show(show_image=True)
+```
+
+### 3. make
+make renders of each frame to sdout folder. If an image already exists for the frame, it just skips and advances to the next frame. If you want to regenerate all frames. you can call clean(). It will delete all files is sdout.
+```
+# v.clean()
+v.make()
+```
+You can also do a partial make by passing overwrite when adding keyframe.
+```
+v.add(seed=1001)                  # keyframe 1
+# overwrite frames in between keyframe 1 & 2 
+v.add(seed=1002, overwrite=True)  # keyframe 2
+# overwrite frames in between keyframe 2 & 3
+v.add(seed=1003)                  # keyframe 3
+v.add(seed=1004, overwrite=False) # keyframe 4
+v.add(seed=1005)                  # keyframe 5
+```
+This will overwrite frames between keyframe 1 to keyframe 2(inclusive).
+It will maintain the overwrite status if the overwrite is not passed. So it will also overwrite frames between keyframe 2 and keyframe 3(inclusive).
+
+### 4. encode
+encodes all frames from sdout using ffmpeg. File is saved in `./projects/project_name/project_name.mp4`.
+```
+v.encode(show=True)
+```
+
+### 5. upsample
+upsample using RealESRGAN (4x). Frames from sdout is upscaled and saved in 'upsample' folder. Then encoded to `./projects/project_name/project_name_upsample.mp4`.
+```
+v.upsample()
+```
+
+
 ## Editing weights
 ```
 prompt = 'the quick brown fox jumps over the lazy dog'
@@ -79,6 +164,10 @@ edit_weights = [(1, -1)]
 
 # assign same weight to multiple words
 edit_weights = [(['quick', 'brown'], -1)]
+
+# You can print the indices of the tokens:
+import crossattentioncontrol
+crossattentioncontrol.print_token(prompt)
 ```
 
 ## IncreaseMode
