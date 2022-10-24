@@ -4,13 +4,13 @@ sdvm is a video generation tool for Stable Diffusion.
 The code is based on CrossAttentionControl which supports prompt editing.
 
 ## Features
-* animate between seeds, prompts, and prompt edit weights.
+* interpolate between seeds, prompts, and prompt edit weights.
 * can insert different number of frames between keyframes.
 * keyframes can be animated using different curves (linear, bezier, bezier2...)
 * supports negative prompts
 * cache keyframes
-* upsampling using RealESRGAN
 * encode video using ffmpeg
+* upsampling using RealESRGAN
 
 ## Google Colab notebook:
  * [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/15x55IoGOZHqozTPKDlX7ZBG0duTV-lj4?usp=sharing) https://colab.research.google.com/drive/15x55IoGOZHqozTPKDlX7ZBG0duTV-lj4?usp=sharing
@@ -179,7 +179,7 @@ crossattentioncontrol.print_token(prompt)
 
 ## IncreaseMode
 increase_mode can be set when initializing the VideoMaker class. It's default value is linear.
-The keyframes are interpolated using the increase_mode curve. It's also possible to assign increase_mode when adding a keyframe.
+Keyframes are interpolated using the increase_mode curve. It's also possible to assign increase_mode when adding a keyframe.
 This will interpolate using the curve between the previous keyframe.
 
 Here's a graph of the curves:
@@ -196,8 +196,8 @@ If you experience jumps when using bezier curves, you can add f suffix. bezierf,
 ![Increase Mode fix](https://github.com/mix1009/stable-diffusion-video-maker/blob/main/doc/images/IncreaseMode2.png?raw=true)
 
 
-## Project Structure:
- * projects/project_name is the root of the project. (projects can be changed by passing basepath in VideoMaker)
+## Project Folder Structure:
+ * projects/project_name is the root of the project. (`projects` folder can be changed by passing basepath when initializing VideoMaker)
  * projects/project_name/sdout : SD images are stored here.
  * projects/project_name/project_name.mp4 : video file path
  * projects/project_name/upsample : upsampled images.
