@@ -118,7 +118,7 @@ v.show(show_image=True)
 ```
 
 ### 3. make
-make renders of each frame to sdout folder. If an image already exists for the frame, it just skips and advances to the next frame. If you want to regenerate all frames. you can call clean(). It will delete all files is sdout.
+make renders of each frame to sdout folder. If an image already exists for the frame, it just skips and advances to the next frame. If you want to regenerate all frames. you can call clean(). It will delete all files in sdout.
 ```
 # v.clean()
 v.make()
