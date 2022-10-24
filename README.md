@@ -63,7 +63,7 @@ for seed in seeds:
     v.add(seed)
 
 v.make()
-v.upscale()
+v.upsample() # upsample and create video file
 ```
 [![Result Video: YouTube](https://i.imgur.com/Gvo6703.png)](https://www.youtube.com/watch?v=pDRv6xT1ZC8)
 
