@@ -383,6 +383,7 @@ def prompt_token(prompt, index):
 @torch.no_grad()
 def get_latent(seed, width=512, height=512):
     device = get_model().device
+    unet = get_model().unet
 
     width = width - width % 64
     height = height - height % 64
@@ -420,6 +421,7 @@ def sort_seeds(seeds, width, height):
 @torch.no_grad()
 def get_text_embedding(prompt):
     clip_tokenizer = get_model().clip_tokenizer
+    clip = get_model().clip
     device = get_model().device
 
     with autocast(device):
