@@ -592,14 +592,14 @@ class VideoMaker:
         shutil.rmtree(path)
         print(f'deleted {path}')
     
-    def make_audio_preview(self):
+    def make_audio_preview(self, show=False):
         from PIL import Image, ImageDraw, ImageFont
         import os, shutil
         peak = self.audiopeak
         font = ImageFont.truetype("font/Roboto-Regular.ttf", 16)
 
         path = f'{self.projectpath}/audio_preview'
-        shutil.rmtree(path)
+        shutil.rmtree(path, ignore_errors=True)
         os.makedirs(path, exist_ok=True)
 
         name = os.path.basename(self.audiofile)
@@ -641,5 +641,7 @@ class VideoMaker:
             draw.text((self.width-text_w-10, 10), txt,'#808080',font=font)
 
             img.save(f'{path}/frame{frame:05}.png')
-
-        sdutil.encode(path, f'{self.projectpath}/{nameonly}_{self.fps}fps.mp4', audiofile=self.audiofile, fps=self.fps)    
+        videopath = f'{self.projectpath}/{nameonly}_{self.fps}fps.mp4'
+        sdutil.encode(path, videopath, audiofile=self.audiofile, fps=self.fps)
+        if show:
+            return sdutil.show_video(videopath)

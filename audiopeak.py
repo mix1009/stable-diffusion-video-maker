@@ -31,18 +31,23 @@ class AudioPeak:
         self.duration = len(y) / sr
         self.total_frame_count = int(self.duration * self.fps)
         
-        y_harm, y_perc = librosa.effects.hpss(y)
+        y_harm, y_perc = librosa.effects.hpss(y, margin=(1.0,5.0))
 
         hop_length = 512
-        bands = 5
+        n_mels = 4 # 5
 
         strength = librosa.onset.onset_strength(y=y, sr=sr, aggregate=np.median)
         times = librosa.times_like(strength, sr=sr, hop_length=hop_length)
-        perc_s = get_spec_norm(y_perc, sr, bands, hop_length)
-        harm_s = get_spec_norm(y_harm, sr, bands, hop_length)
+        perc_s = get_spec_norm(y_perc, sr, n_mels, hop_length)
+        harm_s = get_spec_norm(y_harm, sr, n_mels, hop_length)
         
         librosa_frame_count = len(strength)
-                               
+              
+        self.orig_times = times
+        self.orig_strength = strength
+        self.orig_perc = perc_s
+        self.orig_harm = harm_s
+
         strength = interp_(strength, self.total_frame_count)
         strength = librosa.util.normalize(strength)
         
@@ -52,9 +57,8 @@ class AudioPeak:
         harm_s = interp_(harm_s, self.total_frame_count)
         harm_s = librosa.util.normalize(harm_s)
 
-
         times = interp_(times, self.total_frame_count)
-        beats_time = librosa.frames_to_time(beats, sr=sr)
+#         beats_time = librosa.frames_to_time(beats, sr=sr)
         
         beats_array = np.zeros(self.total_frame_count)
         for i in beats:
@@ -90,14 +94,40 @@ class AudioPeak:
 
         return str
 
-    def plot(self):
+    def plot(self, start_frame=None, end_frame=None):
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots(nrows=4, sharex=True)
+        
+        times = self.times
+        strength = self.strength
+        perc = self.perc
+        harm = self.harm
+        beats = self.beats
+        if start_frame is not None:
+            if end_frame is not None:
+                times = times[start_frame:end_frame]
+                strength = strength[start_frame:end_frame]
+                perc = perc[start_frame:end_frame]
+                harm = harm[start_frame:end_frame]
+                beats = beats[start_frame:end_frame]
+            else:
+                times = times[start_frame:]
+                strength = strength[start_frame:]
+                perc = perc[start_frame:]
+                harm = harm[start_frame:]
+                beats = beats[start_frame:]
+        elif end_frame is not None:
+            times = times[:end_frame]
+            strength = strength[:end_frame]
+            perc = perc[:end_frame]
+            harm = harm[:end_frame]
+            beats = beats[:end_frame]
+                
 
-        ax[0].plot(self.times, self.strength, label='strength', color='black')
-        ax[1].plot(self.times, self.perc, label='perc', color='blue')
-        ax[2].plot(self.times, self.harm, label='harm', color='orange')
-        ax[3].plot(self.times, self.beats, label='beats', color='red')
+        ax[0].plot(times, strength, label='strength', color='black')
+        ax[1].plot(times, perc, label='perc', color='blue')
+        ax[2].plot(times, harm, label='harm', color='orange')
+        ax[3].plot(times, beats, label='beats', color='red')
         fig.legend()
         return fig
 
