@@ -96,8 +96,11 @@ v.generate(seed=101, count=10,
 
 # generate 6(default) images using seed 101 - 106, using the project prompt.
 v.generate(101)
+```
 
+add keyframes: 
 
+```
 # add first keyframe ( add one key frame )
 v.add(seed=106, prompt='photo of a cat')
 
