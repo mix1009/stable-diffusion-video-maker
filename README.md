@@ -4,13 +4,13 @@ sdvm is a video generation tool for Stable Diffusion.
 The code is based on CrossAttentionControl which supports prompt editing.
 
 ## Features
-* animate between seeds, prompts, and prompt edit weights.
+* interpolate between seeds, prompts, and prompt edit weights.
 * can insert different number of frames between keyframes.
 * keyframes can be animated using different curves (linear, bezier, bezier2...)
 * supports negative prompts
 * cache keyframes
-* upsampling using RealESRGAN
 * encode video using ffmpeg
+* upsampling using RealESRGAN
 
 ## Google Colab notebook:
  * [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/15x55IoGOZHqozTPKDlX7ZBG0duTV-lj4?usp=sharing) https://colab.research.google.com/drive/15x55IoGOZHqozTPKDlX7ZBG0duTV-lj4?usp=sharing
@@ -63,16 +63,27 @@ for seed in seeds:
     v.add(seed)
 
 v.make()
-v.upscale()
+v.upsample() # upsample and create video file
 ```
-[![Result Video: YouTube](https://i.imgur.com/Gvo6703.png)](https://www.youtube.com/watch?v=pDRv6xT1ZC8)
-
+[![Result Video: YouTube](https://user-images.githubusercontent.com/1288793/197533606-7f9c0d52-2d6f-4d3e-a32f-0304f07197f7.jpg)](https://www.youtube.com/watch?v=pDRv6xT1ZC8)
 
 ## Workflow
 
 The workflow is for Google Colab or Jupyter Notebook.
 
-### 1. initialize VideoMaker
+### 1. load model
+```
+# You need to provide your huggingface account token if the model needs to be downloaded.
+sdvm.init_model(auth_token='hf_your_huggingface_access_token')
+
+# You can pass model id. 'CompVis/stable-diffusion-v1-4' is the default model.
+sdvm.init_model('runwayml/stable-diffusion-v1-5', auth_token='hf_your_huggingface_access_token')
+
+# If the model is already downloaded and default model is used, calling init_model is optional.
+# The library will load the model when creating the first image.
+```
+
+### 2. initialize VideoMaker
 ```
 v = sdvm.VideoMaker('project_name',
                     width=512,
@@ -84,21 +95,22 @@ v = sdvm.VideoMaker('project_name',
                     num_frames=90, # default num of frames for interpolation between keyframes.
                     )
 ```
-### 2. generate and add keyframes
+### 3. generate and test images for keyframes
 use generate to test images. 
 ```
-# generate 10 images from seed 101 to 110
+# generate and display 10 images from seed 101 to 110
 v.generate(seed=101, count=10,
            prompt='photo of a cat',
            negative_prompt='',
            edit_weights=[],
            )
 
-# generate 6(default) images using seed 101 - 106, using the project prompt.
+# generate and display 6(default) images using seed 101 - 106, with the project prompt.
 v.generate(101)
 ```
+generate() save images to cache folder, so it doesn't have to regenerate images next time.
 
-add keyframes: 
+### 4. add keyframes
 
 ```
 # add first keyframe ( add one key frame )
@@ -123,9 +135,10 @@ v.preview()
 # show also can display images along side text.
 v.show(show_image=True)
 ```
+generate(), preview(), and show(show_image=True) share image cache.
 
-### 3. make
-make renders of each frame to sdout folder. If an image already exists for the frame, it just skips and advances to the next frame. If you want to regenerate all frames. you can call clean(). It will delete all files in sdout.
+### 5. make
+make renders each frame to sdout folder. If an image file already exists for the frame, it skips and advances to the next frame. If you want to regenerate all frames. you can call clean(). It will delete all files in sdout.
 ```
 # v.clean()
 v.make()
@@ -143,13 +156,13 @@ v.add(seed=1005)                  # keyframe 5
 This will overwrite frames between keyframe 1 to keyframe 2(inclusive).
 It will maintain the overwrite status if the overwrite is not passed. So it will also overwrite frames between keyframe 2 and keyframe 3(inclusive).
 
-### 4. encode
+### 6. encode
 encodes all frames from sdout using ffmpeg. File is saved in `./projects/project_name/project_name.mp4`.
 ```
 v.encode(show=True)
 ```
 
-### 5. upsample
+### 7. upsample
 upsample using RealESRGAN (4x). Frames from sdout is upscaled and saved in 'upsample' folder. Then encoded to `./projects/project_name/project_name_upsample.mp4`.
 ```
 v.upsample()
@@ -179,20 +192,25 @@ crossattentioncontrol.print_token(prompt)
 
 ## IncreaseMode
 increase_mode can be set when initializing the VideoMaker class. It's default value is linear.
-The keyframes are interpolated using the increase_mode curve. It's also possible to assign increase_mode when adding a keyframe.
+Keyframes are interpolated using the increase_mode curve. It's also possible to assign increase_mode when adding a keyframe.
 This will interpolate using the curve between the previous keyframe.
 
 Here's a graph of the curves:
 
 ![Increase Mode](https://github.com/mix1009/stable-diffusion-video-maker/blob/main/doc/images/IncreaseMode1.png?raw=true)
 
+Video comparison:
+
+[increase_mode_compare.webm](https://user-images.githubusercontent.com/1288793/197507567-c6dcaf16-c0d6-4dff-ae70-ebff2ad8603f.webm)
+
+
 If you experience jumps when using bezier curves, you can add f suffix. bezierf, bezier2f, bezier3f rounds values so there is no jumps around the keyframes.
 
 ![Increase Mode fix](https://github.com/mix1009/stable-diffusion-video-maker/blob/main/doc/images/IncreaseMode2.png?raw=true)
 
 
-## Project Structure:
- * projects/project_name is the root of the project. (projects can be changed by passing basepath in VideoMaker)
+## Project Folder Structure:
+ * projects/project_name is the root of the project. (`projects` folder can be changed by passing basepath when initializing VideoMaker)
  * projects/project_name/sdout : SD images are stored here.
  * projects/project_name/project_name.mp4 : video file path
  * projects/project_name/upsample : upsampled images.
