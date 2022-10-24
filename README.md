@@ -186,6 +186,11 @@ Here's a graph of the curves:
 
 ![Increase Mode](https://github.com/mix1009/stable-diffusion-video-maker/blob/main/doc/images/IncreaseMode1.png?raw=true)
 
+Video comparison:
+
+[increase_mode_compare.webm](https://user-images.githubusercontent.com/1288793/197507567-c6dcaf16-c0d6-4dff-ae70-ebff2ad8603f.webm)
+
+
 If you experience jumps when using bezier curves, you can add f suffix. bezierf, bezier2f, bezier3f rounds values so there is no jumps around the keyframes.
 
 ![Increase Mode fix](https://github.com/mix1009/stable-diffusion-video-maker/blob/main/doc/images/IncreaseMode2.png?raw=true)
