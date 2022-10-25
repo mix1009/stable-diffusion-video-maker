@@ -1,6 +1,12 @@
 import librosa
-import scipy.interpolate as interp
+import scipy.interpolate
 import numpy as np
+
+def interp(arr, new_size):
+    arr_interp = scipy.interpolate.interp1d(np.arange(arr.size),arr)
+    return arr_interp(np.linspace(0,arr.size-1, new_size))
+def normalize(arr):
+    return librosa.util.normalize(arr)
 
 class AudioPeak:
     def __init__(self, audiofilepath, fps, video_duration=None, offset=0.0):
@@ -20,9 +26,6 @@ class AudioPeak:
             spec_norm = (spec_max - np.min(spec_max))/np.ptp(spec_max)
             return spec_norm
         
-        def interp_(arr, new_size):
-            arr1_interp = interp.interp1d(np.arange(arr.size),arr)
-            return arr1_interp(np.linspace(0,arr.size-1, new_size))
 
         duration = self.video_duration
         y, sr = librosa.load(self.audiofilepath, offset=self.offset, duration=duration)
@@ -48,16 +51,16 @@ class AudioPeak:
         self.orig_perc = perc_s
         self.orig_harm = harm_s
 
-        strength = interp_(strength, self.total_frame_count)
-        strength = librosa.util.normalize(strength)
+        strength = interp(strength, self.total_frame_count)
+        strength = normalize(strength)
         
-        perc_s = interp_(perc_s, self.total_frame_count)
-        perc_s = librosa.util.normalize(perc_s)
+        perc_s = interp(perc_s, self.total_frame_count)
+        perc_s = normalize(perc_s)
         
-        harm_s = interp_(harm_s, self.total_frame_count)
-        harm_s = librosa.util.normalize(harm_s)
+        harm_s = interp(harm_s, self.total_frame_count)
+        harm_s = normalize(harm_s)
 
-        times = interp_(times, self.total_frame_count)
+        times = interp(times, self.total_frame_count)
 #         beats_time = librosa.frames_to_time(beats, sr=sr)
         
         beats_array = np.zeros(self.total_frame_count)
@@ -94,52 +97,51 @@ class AudioPeak:
 
         return str
 
-    def plot(self, start_frame=None, end_frame=None):
+    def plot(self, start_frame=None, end_frame=None,
+             graph=['strength', 'beats', 'perc', 'harm'],
+             return_graph=False,
+            ):
         import matplotlib.pyplot as plt
-        fig, ax = plt.subplots(nrows=4, sharex=True)
         
         times = self.times
-        strength = self.strength
-        perc = self.perc
-        harm = self.harm
-        beats = self.beats
+        data = {}
+        for graph_name in graph:
+            data[graph_name] = self.__dict__[graph_name]
+
         if start_frame is not None:
             if end_frame is not None:
                 times = times[start_frame:end_frame]
-                strength = strength[start_frame:end_frame]
-                perc = perc[start_frame:end_frame]
-                harm = harm[start_frame:end_frame]
-                beats = beats[start_frame:end_frame]
+                for graph_name in graph:
+                    data[graph_name] = data[graph_name][start_frame:end_frame]
             else:
                 times = times[start_frame:]
-                strength = strength[start_frame:]
-                perc = perc[start_frame:]
-                harm = harm[start_frame:]
-                beats = beats[start_frame:]
+                for graph_name in graph:
+                    data[graph_name] = data[graph_name][start_frame:]
         elif end_frame is not None:
             times = times[:end_frame]
-            strength = strength[:end_frame]
-            perc = perc[:end_frame]
-            harm = harm[:end_frame]
+            for graph_name in graph:
+                data[graph_name] = data[graph_name][:end_frame]
             beats = beats[:end_frame]
-                
+            
+        color = ['black', 'blue', 'orange', 'red', 'green']
+        fig, ax = plt.subplots(nrows=len(graph), sharex=True)
 
-        ax[0].plot(times, strength, label='strength', color='black')
-        ax[1].plot(times, perc, label='perc', color='blue')
-        ax[2].plot(times, harm, label='harm', color='orange')
-        ax[3].plot(times, beats, label='beats', color='red')
+        for idx, graph_name in enumerate(graph):
+            ax[idx].plot(times, data[graph_name], label=graph_name, color=color[idx%len(color)])
         fig.legend()
-        return fig
+    
+        if return_graph:
+            return fig
     
     def make_preview_video(self,
-                            path='.',
-                            filename=None,
-                            width=768,
-                            height=512,
-                            show=False,
-                            font=None,
-#                             graph=['strength', 'beats', 'perc', 'harm'],
-                            ):
+                           path='.',
+                           filename=None,
+                           width=768,
+                           height=512,
+                           show=False,
+                           font=None,
+                           graph=['strength', 'beats', 'perc', 'harm'],
+                           ):
         from PIL import Image, ImageDraw, ImageFont
         import os, shutil, tempfile
         from tqdm.auto import tqdm
@@ -151,43 +153,52 @@ class AudioPeak:
             fontpath = "font/Roboto-Regular.ttf"
             if os.path.exists(fontpath):
                 font = ImageFont.truetype(fontpath, 16)
+                
+                
+        name = os.path.basename(self.audiofilepath)
+        nameonly = name[:name.rfind('.')]
 
+        def prepend_zeros(arr, count=10):
+            return np.concatenate((np.zeros(count), arr))
+        
+        data = {}
+        
+        for graph_name in graph:
+            data[graph_name] = prepend_zeros(self.__dict__[graph_name])
+        beats = prepend_zeros(peak.beats)
+
+        def draw_graph(arr, frame, y, title, color=None, beats=None):
+            for idx, val in enumerate(arr[frame:]):
+                x = idx*7
+                if x > width: break
+                yval = val*50
+                if beats is not None and beats[frame+idx]==1:                
+                    draw.rectangle([(x, y+20), (x+5, y+20-yval)], fill='#ffffc0')
+                else:
+                    draw.rectangle([(x, y+20), (x+5, y+20-yval)], fill=color)
+            draw.text((80, y-50), title, color, font=font)
+
+        total_frames = len(beats)
+
+        color = ['#ff0000', '#ffff80', '#80ff80', '#8080ff']
+        
         with tempfile.TemporaryDirectory() as tmppath:
-            name = os.path.basename(self.audiofilepath)
-            nameonly = name[:name.rfind('.')]
 
-            def prepend_zeros(arr, count=10):
-                return np.concatenate((np.zeros(count), arr))
-            strength = prepend_zeros(peak.strength)
-            beats = prepend_zeros(peak.beats)
-            perc = prepend_zeros(peak.perc)
-            harm = prepend_zeros(peak.harm)    
-
-            def draw_graph(arr, frame, y, title, color, beats=None):
-                for idx, val in enumerate(arr[frame:]):
-                    x = idx*7
-                    if x > width: break
-                    yval = val*50
-                    if beats is not None and beats[frame+idx]==1:                
-                        draw.rectangle([(x, y+20), (x+5, y+20-yval)], fill='#ffffc0')
-                    else:
-                        draw.rectangle([(x, y+20), (x+5, y+20-yval)], fill=color)
-                draw.text((80, y-50), title, color, font=font)
-
-            self.total_audio_frames = len(strength)
-
-            for frame in tqdm(range(0, self.total_audio_frames)):
+            for frame in tqdm(range(0, total_frames)):
 
                 img = Image.new('RGB', (width, height), color = 'black')
                 draw = ImageDraw.Draw(img)
-                draw.rectangle([(71, 80), (72, 480)], fill='#404040')
+                draw.rectangle([(71, 80), (72, height-10)], fill='#404040')
 
-                draw_graph(strength, frame, 150, 'strength', '#ff0000', beats)
-                draw_graph(beats,    frame, 250, 'beats', '#ffff80')
-                draw_graph(perc,     frame, 350, 'perc', '#80ff80', beats)
-                draw_graph(harm,     frame, 450, 'harm', '#8080ff', beats)
+                for idx, graph_name in enumerate(graph):
+                    c = color[idx%len(color)]
+                    if graph_name == 'beats':
+                        draw_graph(data[graph_name], frame, 100+100*idx, graph_name, c)
+                    else:
+                        draw_graph(data[graph_name], frame, 100+100*idx, graph_name, c, beats)
 
-                draw.text((10, 10),f'[{frame}/{self.total_audio_frames-1}] {name}',(255,255,255),font=font)
+
+                draw.text((10, 10),f'[{frame}/{total_frames-1}] {name}',(255,255,255),font=font)
 
                 txt = f'{self.fps} fps / {self.duration:.1f}s'
                 text_w = draw.textlength(txt, font=font)
@@ -211,10 +222,14 @@ class AudioPeak:
         return ", ".join([f'{i}: ({fn(v):.2f})' for i, v in enumerate(vec)])
 
 if __name__ == '__main__':
-    r = AudioPeak('./audio.mp3', 15)
+    a = AudioPeak('./audio.mp3', 15)
     print(r)
-    r.plot().savefig('./result.png')
+    a.plot(return_graph=True).savefig('./result.png')
+    a.my = normalize(a.harm + a.perc - a.beats+1)
+    a.c1 = np.power(a.perc, 0.1)
+    g = a.plot(50,150, graph=['strength', 'my', 'perc', 'c1'], return_graph=True)
+    g.savefig('./custom_graph.png')
     print('-----------')
-    print(r.dump(r.strength, lambda x: x**2))
+    print(a.dump(a.strength, lambda x: x**2))
     print('-----------')
-    print(r.dump(r.strength, lambda x: 1+x**2))
+    print(a.dump(a.strength, lambda x: 1+x**2))
