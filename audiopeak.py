@@ -1,7 +1,7 @@
 import librosa
 import scipy.interpolate as interp
 import numpy as np
-        
+
 class AudioPeak:
     def __init__(self, audiofilepath, fps, video_duration=None, offset=0.0):
         self.audiofilepath = audiofilepath
@@ -130,6 +130,82 @@ class AudioPeak:
         ax[3].plot(times, beats, label='beats', color='red')
         fig.legend()
         return fig
+    
+    def make_preview_video(self,
+                            path='.',
+                            filename=None,
+                            width=768,
+                            height=512,
+                            show=False,
+                            font=None,
+#                             graph=['strength', 'beats', 'perc', 'harm'],
+                            ):
+        from PIL import Image, ImageDraw, ImageFont
+        import os, shutil, tempfile
+        from tqdm.auto import tqdm
+        import sdutil
+
+        peak = self
+        
+        if font is None:
+            fontpath = "font/Roboto-Regular.ttf"
+            if os.path.exists(fontpath):
+                font = ImageFont.truetype(fontpath, 16)
+
+        with tempfile.TemporaryDirectory() as tmppath:
+            name = os.path.basename(self.audiofilepath)
+            nameonly = name[:name.rfind('.')]
+
+            def prepend_zeros(arr, count=10):
+                return np.concatenate((np.zeros(count), arr))
+            strength = prepend_zeros(peak.strength)
+            beats = prepend_zeros(peak.beats)
+            perc = prepend_zeros(peak.perc)
+            harm = prepend_zeros(peak.harm)    
+
+            def draw_graph(arr, frame, y, title, color, beats=None):
+                for idx, val in enumerate(arr[frame:]):
+                    x = idx*7
+                    if x > width: break
+                    yval = val*50
+                    if beats is not None and beats[frame+idx]==1:                
+                        draw.rectangle([(x, y+20), (x+5, y+20-yval)], fill='#ffffc0')
+                    else:
+                        draw.rectangle([(x, y+20), (x+5, y+20-yval)], fill=color)
+                draw.text((80, y-50), title, color, font=font)
+
+            self.total_audio_frames = len(strength)
+
+            for frame in tqdm(range(0, self.total_audio_frames)):
+
+                img = Image.new('RGB', (width, height), color = 'black')
+                draw = ImageDraw.Draw(img)
+                draw.rectangle([(71, 80), (72, 480)], fill='#404040')
+
+                draw_graph(strength, frame, 150, 'strength', '#ff0000', beats)
+                draw_graph(beats,    frame, 250, 'beats', '#ffff80')
+                draw_graph(perc,     frame, 350, 'perc', '#80ff80', beats)
+                draw_graph(harm,     frame, 450, 'harm', '#8080ff', beats)
+
+                draw.text((10, 10),f'[{frame}/{self.total_audio_frames-1}] {name}',(255,255,255),font=font)
+
+                txt = f'{self.fps} fps / {self.duration:.1f}s'
+                text_w = draw.textlength(txt, font=font)
+                draw.text((width-text_w-10, 10), txt,'#808080',font=font)
+
+                img.save(f'{tmppath}/frame{frame:05}.png')
+
+            if filename is None:
+                videopath = f'{path}/{nameonly}_{self.fps}fps.mp4'
+            else:
+                videopath = f'{path}/{filename}'
+            sdutil.encode(tmppath, videopath, audiofile=self.audiofilepath, fps=self.fps)
+
+        if show:
+            return sdutil.show_video(videopath, height=height)
+        else:
+            return videopath
+
 
     def dump(self, vec, fn=lambda x: x):
         return ", ".join([f'{i}: ({fn(v):.2f})' for i, v in enumerate(vec)])

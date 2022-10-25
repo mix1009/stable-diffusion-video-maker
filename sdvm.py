@@ -592,56 +592,11 @@ class VideoMaker:
         shutil.rmtree(path)
         print(f'deleted {path}')
     
-    def make_audio_preview(self, show=False):
-        from PIL import Image, ImageDraw, ImageFont
-        import os, shutil
-        peak = self.audiopeak
-        font = ImageFont.truetype("font/Roboto-Regular.ttf", 16)
+    def make_audio_preview_video(self, show=True, width=None, height=None):
+        if width is None:
+            width = self.width
+        if height is None:
+            height = self.height
+        return self.audiopeak.make_preview_video(path=self.projectpath,
+                                                 width=width, height=height, show=show)
 
-        path = f'{self.projectpath}/audio_preview'
-        shutil.rmtree(path, ignore_errors=True)
-        os.makedirs(path, exist_ok=True)
-
-        name = os.path.basename(self.audiofile)
-        nameonly = name[:name.rfind('.')]
-
-        def prepend_zeros(arr, count=10):
-            return np.concatenate((np.zeros(count), arr))
-        strength = prepend_zeros(peak.strength)
-        beats = prepend_zeros(peak.beats)
-        perc = prepend_zeros(peak.perc)
-        harm = prepend_zeros(peak.harm)    
-
-        def draw_graph(arr, frame, y, title, color, beats=None):
-            for idx, val in enumerate(arr[frame:]):
-                x = idx*7
-                if x > self.width: break
-                yval = val*50
-                if beats is not None and beats[frame+idx]==1:                
-                    draw.rectangle([(x, y+20), (x+5, y+20-yval)], fill='#ffffc0')
-                else:
-                    draw.rectangle([(x, y+20), (x+5, y+20-yval)], fill=color)
-            draw.text((80, y-50), title, color, font=font)
-
-        for frame in tqdm(range(0, self.total_audio_frames)):
-
-            img = Image.new('RGB', (self.width, self.height), color = 'black')
-            draw = ImageDraw.Draw(img)
-            draw.rectangle([(71, 80), (72, 480)], fill='#404040')
-
-            draw_graph(strength, frame, 150, 'strength', '#ff0000', beats)
-            draw_graph(beats,    frame, 250, 'beats', '#ffff80')
-            draw_graph(perc,     frame, 350, 'perc', '#80ff80', beats)
-            draw_graph(harm,     frame, 450, 'harm', '#8080ff', beats)
-
-            draw.text((10, 10),f'[{frame}/{self.total_audio_frames-1}] {name}',(255,255,255),font=font)
-
-            txt = f'{self.fps} fps / {self.audiopeak.duration:.1f}s'
-            text_w = draw.textlength(txt, font=font)
-            draw.text((self.width-text_w-10, 10), txt,'#808080',font=font)
-
-            img.save(f'{path}/frame{frame:05}.png')
-        videopath = f'{self.projectpath}/{nameonly}_{self.fps}fps.mp4'
-        sdutil.encode(path, videopath, audiofile=self.audiofile, fps=self.fps)
-        if show:
-            return sdutil.show_video(videopath)
