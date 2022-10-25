@@ -178,7 +178,7 @@ class AudioPeak:
                     draw.rectangle([(x, y+20), (x+5, y+20-yval)], fill=color)
             draw.text((80, y-50), title, color, font=font)
 
-        total_frames = len(beats)
+        total_frames = len(self.beats)
 
         color = ['#ff0000', '#ffff80', '#80ff80', '#8080ff']
         
