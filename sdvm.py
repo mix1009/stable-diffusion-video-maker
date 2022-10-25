@@ -226,7 +226,7 @@ class VideoMaker:
                          start_frame=0,
                          strength=1.0)
             images.append(k.image())
-            if len(images) == 3:
+            if len(images) == cols:
                 display(sdutil.image_grid(images, cols=3))
                 images = []
                     
@@ -382,20 +382,20 @@ class VideoMaker:
         if len(images) > 0:
             display(sdutil.image_grid(images, cols=3))
 
-    def preview(self, one_image=False):
+    def preview(self, one_image=False, cols=2):
         images = []
         last_hash = None
         for k in self.key_frames:
             if last_hash == k.hash: continue            
             images.append(k.image())
-            if len(images) == 2 and not one_image:
-                display(sdutil.image_grid(images, cols=2))
+            if len(images) == cols and not one_image:
+                display(sdutil.image_grid(images, cols=cols))
                 images = []
             last_hash = k.hash
                     
                     
         if len(images) > 0:
-            display(sdutil.image_grid(images, cols=2))
+            display(sdutil.image_grid(images, cols=cols))
 
 
     def encode(self, show=False):
