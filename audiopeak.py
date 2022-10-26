@@ -5,19 +5,25 @@ import numpy as np
 def interp(arr, new_size):
     arr_interp = scipy.interpolate.interp1d(np.arange(arr.size),arr)
     return arr_interp(np.linspace(0,arr.size-1, new_size))
+
 def normalize(arr):
     return librosa.util.normalize(arr)
 
+def normalize_with_nth_max(arr, nth=3, nth_val=0.9):
+    nth_max = np.partition(arr, -nth)[-nth]
+    return np.clip(arr/nth_max*nth_val , 0, 1)
+
 class AudioPeak:
-    def __init__(self, audiofilepath, fps, video_duration=None, offset=0.0):
+    def __init__(self, audiofilepath, fps, video_duration=None, offset=0.0, n_mels=4):
         self.audiofilepath = audiofilepath
         self.fps = fps
         self.video_duration = video_duration
         self.offset = offset
+        self.n_mels = n_mels
             
         self.analyze()
         
-    def analyze(self):
+    def analyze(self, n_mels=None):
         def get_spec_norm(wav, sr, n_mels, hop_length):
             spec_raw = librosa.feature.melspectrogram(y=wav, sr=sr,
                                                        n_mels=n_mels,
@@ -36,8 +42,9 @@ class AudioPeak:
         
         y_harm, y_perc = librosa.effects.hpss(y, margin=(1.0,5.0))
 
-        hop_length = 512
-        n_mels = 4 # 5
+        hop_length = int(sr/self.fps)
+        if n_mels is None:
+            n_mels = self.n_mels # 32 # 5
 
         strength = librosa.onset.onset_strength(y=y, sr=sr, aggregate=np.median)
         times = librosa.times_like(strength, sr=sr, hop_length=hop_length)
@@ -50,6 +57,10 @@ class AudioPeak:
         self.orig_strength = strength
         self.orig_perc = perc_s
         self.orig_harm = harm_s
+        
+        strength = normalize_with_nth_max(strength, 3)
+        perc_s = normalize_with_nth_max(perc_s, 3)
+        harm_s = normalize_with_nth_max(harm_s, 3)
 
         strength = interp(strength, self.total_frame_count)
         strength = normalize(strength)
