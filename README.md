@@ -67,6 +67,54 @@ v.upsample() # upsample and create video file
 ```
 [![Result Video: YouTube](https://user-images.githubusercontent.com/1288793/197533606-7f9c0d52-2d6f-4d3e-a32f-0304f07197f7.jpg)](https://www.youtube.com/watch?v=pDRv6xT1ZC8)
 
+## Example code 3 (animate using audio):
+```
+v = sdvm.VideoMaker('paint_art_3',
+                    prompt='smooth flowing paint, award winning, digital art',
+                    num_frames=100,
+                    fps=10)
+
+v.add(3987830111, edit_weights=[('flowing', -10), ('paint', 5)])
+v.add(1002      , edit_weights=[('flowing',  -5), ('paint', 0)])
+v.add(1009      , edit_weights=[('flowing', -10), ('paint', 5)])
+v.add(1009      , edit_weights=[('flowing',   0), ('paint', 0)])
+v.add(1021      , edit_weights=[('flowing', -10), ('paint', 5)])
+v.add(1035      , edit_weights=[('flowing',  -5), ('paint', 5)])
+
+# save frame images to sdout
+v.make()
+
+# load mp3 to extract audio info (strength, beats, perc, harm)
+v.load_audiofile('Lift Motif - Kevin MacLeod.mp3')
+
+harm = v.audiopeak.harm
+perc = v.audiopeak.perc
+
+angle_arr = []
+zoom_arr = []
+
+# use some algorithm to calculate zoom, angle for each frame.
+angle = 0.0
+for frame in range(v.total_audio_frames):
+    zoom = 1.0 + 0.05*perc[frame] + 0.3*(frame/450)
+    angle -= perc[frame]   
+    
+    angle_arr.append(angle)
+    zoom_arr.append(zoom)    
+
+# make animations map. each key must have value for each frame.
+animations = {}
+animations['angle'] = angle_arr
+animations['zoom'] = zoom_arr
+
+# read frames from sdout and process using animations parameters and save to processed folder
+v.animate(animations)
+v.encode(processed=True)
+```
+[![Result Video: YouTube](https://user-images.githubusercontent.com/1288793/198275323-c3985543-43eb-4315-9402-ce5c0983042c.jpg)](https://www.youtube.com/shorts/ha1K9JPqGxI)
+
+
+
 ## Workflow
 
 The workflow is for Google Colab or Jupyter Notebook.
