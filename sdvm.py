@@ -398,9 +398,16 @@ class VideoMaker:
             display(sdutil.image_grid(images, cols=cols))
 
 
-    def encode(self, show=False):
+    def encode(self, show=False, processed=None):
         mp4 = f'{self.projectpath}/{self.name}.mp4'
-        sdutil.encode(self.sdout_path, mp4, fps=self.fps)
+        src_path = self.sdout_path
+        
+        if processed is not False and len(glob.glob(f'{self.processed_path}/*.png')) > 10:
+            print('encode processed!')
+            mp4 = f'{self.projectpath}/{self.name}_processed.mp4'
+            src_path = self.processed_path
+            
+        sdutil.encode(src_path, mp4, fps=self.fps)
         if show:
             return sdutil.show_video(mp4)
         else:
