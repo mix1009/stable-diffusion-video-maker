@@ -1,6 +1,8 @@
 # code based on
 # https://github.com/bloc97/CrossAttentionControl/blob/main/CrossAttention_Release_NoImages.ipynb
- 
+# and  
+# https://github.com/bloc97/CrossAttentionControl/blob/main/InverseCrossAttention_Release_NoImages.ipynb
+
 import torch
 from transformers import CLIPModel, CLIPTextModel, CLIPTokenizer
 from diffusers import AutoencoderKL, UNet2DConditionModel
@@ -377,6 +379,134 @@ def prompt_token(prompt, index):
     tokens = clip_tokenizer(prompt, padding="max_length", max_length=clip_tokenizer.model_max_length, truncation=True, return_tensors="pt", return_overflowing_tokens=True).input_ids[0]
     return clip_tokenizer.decode(tokens[index:index+1])
 
+###############
+
+
+@torch.no_grad()
+def inversestablediffusion(init_image, prompt="",
+                           guidance_scale=3.0, steps=50,
+                           refine_iterations=3, refine_strength=0.9, refine_skip=0.7,
+                           disable_tqdm=False):
+    clip_tokenizer = get_model().clip_tokenizer
+    clip = get_model().clip
+    unet = get_model().unet
+    vae = get_model().vae
+    device = get_model().device
+
+    #Change size to multiple of 64 to prevent size mismatches inside model
+    width, height = init_image.size
+    width = width - width % 64
+    height = height - height % 64
+    
+    image_width, image_height = init_image.size
+    left = (image_width - width)/2
+    top = (image_height - height)/2
+    right = left + width
+    bottom = top + height
+    
+    init_image = init_image.crop((left, top, right, bottom))
+    init_image = np.array(init_image).astype(np.float32) / 255.0 * 2.0 - 1.0
+    init_image = torch.from_numpy(init_image[np.newaxis, ...].transpose(0, 3, 1, 2))
+
+    #If there is alpha channel, composite alpha for white, as the diffusion model does not support alpha channel
+    if init_image.shape[1] > 3:
+        init_image = init_image[:, :3] * init_image[:, 3:] + (1 - init_image[:, 3:])
+
+    #Move image to GPU
+    init_image = init_image.to(device)
+
+    train_steps = 1000
+    step_ratio = train_steps // steps
+    timesteps = torch.from_numpy(np.linspace(0, train_steps - 1, steps + 1, dtype=float)).int().to(device)
+    
+    betas = torch.linspace(0.00085**0.5, 0.012**0.5, train_steps, dtype=torch.float32) ** 2
+    alphas = torch.cumprod(1 - betas, dim=0)
+    
+    init_step = 0
+    
+    #Fixed seed such that the vae sampling is deterministic, shouldn't need to be changed by the user...
+    generator = torch.cuda.manual_seed(798122)
+    
+    #Process clip
+    with autocast(device):
+        init_latent = vae.encode(init_image).latent_dist.sample(generator=generator) * 0.18215
+        
+        tokens_unconditional = clip_tokenizer("", padding="max_length", max_length=clip_tokenizer.model_max_length, truncation=True, return_tensors="pt", return_overflowing_tokens=True)
+        embedding_unconditional = clip(tokens_unconditional.input_ids.to(device)).last_hidden_state
+
+        tokens_conditional = clip_tokenizer(prompt, padding="max_length", max_length=clip_tokenizer.model_max_length, truncation=True, return_tensors="pt", return_overflowing_tokens=True)
+        embedding_conditional = clip(tokens_conditional.input_ids.to(device)).last_hidden_state
+        
+        latent = init_latent
+
+        for i in tqdm(range(steps), total=steps, disable=disable_tqdm):
+            t_index = i + init_step
+            
+            t = timesteps[t_index]
+            t1 = timesteps[t_index + 1]
+            #Magic number for tless taken from Narnia, used for backwards CFG correction
+            tless = t - (t1 - t) * 0.25
+            
+            ap = alphas[t] ** 0.5
+            bp = (1 - alphas[t]) ** 0.5
+            ap1 = alphas[t1] ** 0.5
+            bp1 = (1 - alphas[t1]) ** 0.5
+            
+            latent_model_input = latent
+            #Predict the unconditional noise residual
+            noise_pred_uncond = unet(latent_model_input, t, encoder_hidden_states=embedding_unconditional).sample
+            
+            #Predict the conditional noise residual and save the cross-attention layer activations
+            noise_pred_cond = unet(latent_model_input, t, encoder_hidden_states=embedding_conditional).sample
+            
+            #Perform guidance
+            noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_cond - noise_pred_uncond)
+            
+            #One reverse DDIM step
+            px0 = (latent_model_input - bp * noise_pred) / ap
+            latent = ap1 * px0 + bp1 * noise_pred
+            
+            #Initialize loop variables
+            latent_refine = latent
+            latent_orig = latent_model_input
+            min_error = 1e10
+            lr = refine_strength
+            
+            #Finite difference gradient descent method to correct for classifier free guidance, performs best when CFG is high
+            #Very slow and unoptimized, might be able to use Newton's method or some other multidimensional root finding method
+            if i > (steps * refine_skip):
+                for k in range(refine_iterations):
+                    #Compute reverse diffusion process to get better prediction for noise at t+1
+                    #tless and t are used instead of the "numerically correct" t+1, produces way better results in practice, reason unknown...
+                    noise_pred_uncond = unet(latent_refine, tless, encoder_hidden_states=embedding_unconditional).sample
+                    noise_pred_cond = unet(latent_refine, t, encoder_hidden_states=embedding_conditional).sample
+                    noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_cond - noise_pred_uncond)
+                    
+                    #One forward DDIM Step
+                    px0 = (latent_refine - bp1 * noise_pred) / ap1
+                    latent_refine_orig = ap * px0 + bp * noise_pred
+                    
+                    #Save latent if error is smaller
+                    error = float((latent_orig - latent_refine_orig).abs_().sum())
+                    if error < min_error:
+                        latent = latent_refine
+                        min_error = error
+
+                    #print(k, error)
+                    
+                    #Break to avoid "overfitting", too low error does not produce good results in practice, why?
+                    if min_error < 5:
+                        break
+                    
+                    #"Learning rate" decay if error decrease is too small or negative (dampens oscillations)
+                    if (min_error - error) < 1:
+                        lr *= 0.9
+                    
+                    #Finite difference gradient descent
+                    latent_refine = latent_refine + (latent_model_input - latent_refine_orig) * lr
+                    
+            
+    return latent
 
 ###############
 
@@ -543,3 +673,16 @@ def sd(prompt="", prompt_edit=None,
                           init_image_strength=init_image_strength,
                           disable_tqdm=disable_tqdm)
     return img
+
+def isd(init_image, prompt="",
+        guidance_scale=3.0, steps=50,
+        refine_iterations=3, refine_strength=0.9, refine_skip=0.7,
+        disable_tqdm=True):
+    return inversestablediffusion(init_image,
+                                  prompt=prompt,
+                                  guidance_scale=guidance_scale,
+                                  steps=steps,
+                                  refine_iterations=refine_iterations,
+                                  refine_strength=refine_strength,
+                                  refine_skip=refine_skip,
+                                  disable_tqdm=disable_tqdm)
